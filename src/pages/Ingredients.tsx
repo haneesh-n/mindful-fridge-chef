@@ -1,14 +1,31 @@
 import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import IngredientCard from "@/components/IngredientCard";
-import { Button } from "@/components/ui/button";
+import AddIngredientDialog from "@/components/AddIngredientDialog";
+import IngredientDetailsDialog from "@/components/IngredientDetailsDialog";
 import { Input } from "@/components/ui/input";
 import { mockIngredients } from "@/data/mockData";
-import { Plus, Search } from "lucide-react";
+import { Ingredient } from "@/types/ingredient";
+import { Search } from "lucide-react";
 
 const Ingredients = () => {
-  const [ingredients] = useState(mockIngredients);
+  const [ingredients, setIngredients] = useState(mockIngredients);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handleAddIngredient = (newIngredient: Ingredient) => {
+    setIngredients([...ingredients, newIngredient]);
+  };
+
+  const handleDeleteIngredient = (id: string) => {
+    setIngredients(ingredients.filter(ing => ing.id !== id));
+  };
+
+  const handleIngredientClick = (ingredient: Ingredient) => {
+    setSelectedIngredient(ingredient);
+    setDialogOpen(true);
+  };
 
   const filteredIngredients = ingredients.filter((ing) =>
     ing.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -36,15 +53,16 @@ const Ingredients = () => {
               className="pl-10"
             />
           </div>
-          <Button className="bg-gradient-primary hover:opacity-90">
-            <Plus className="mr-2 h-5 w-5" />
-            Add Ingredient
-          </Button>
+          <AddIngredientDialog onAdd={handleAddIngredient} />
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredIngredients.map((ingredient) => (
-            <IngredientCard key={ingredient.id} ingredient={ingredient} />
+            <IngredientCard 
+              key={ingredient.id} 
+              ingredient={ingredient}
+              onClick={() => handleIngredientClick(ingredient)}
+            />
           ))}
         </div>
 
@@ -54,6 +72,13 @@ const Ingredients = () => {
           </div>
         )}
       </main>
+
+      <IngredientDetailsDialog
+        ingredient={selectedIngredient}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onDelete={handleDeleteIngredient}
+      />
     </div>
   );
 };

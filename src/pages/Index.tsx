@@ -3,15 +3,40 @@ import Navigation from "@/components/Navigation";
 import IngredientCard from "@/components/IngredientCard";
 import RecipeCard from "@/components/RecipeCard";
 import StatsCard from "@/components/StatsCard";
+import AddIngredientDialog from "@/components/AddIngredientDialog";
+import IngredientDetailsDialog from "@/components/IngredientDetailsDialog";
+import RecipeDetailsDialog from "@/components/RecipeDetailsDialog";
 import { Button } from "@/components/ui/button";
-import { mockIngredients, mockRecipes } from "@/data/mockData";
-import { getExpiryStatus } from "@/types/ingredient";
-import { Package, ChefHat, TrendingDown, Plus } from "lucide-react";
+import { mockIngredients, mockRecipes, Recipe } from "@/data/mockData";
+import { getExpiryStatus, Ingredient } from "@/types/ingredient";
+import { Package, ChefHat, TrendingDown } from "lucide-react";
 import heroImage from "@/assets/hero-kitchen.jpg";
 
 const Index = () => {
-  const [ingredients] = useState(mockIngredients);
+  const [ingredients, setIngredients] = useState(mockIngredients);
   const [recipes] = useState(mockRecipes);
+  const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [ingredientDialogOpen, setIngredientDialogOpen] = useState(false);
+  const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
+
+  const handleAddIngredient = (newIngredient: Ingredient) => {
+    setIngredients([...ingredients, newIngredient]);
+  };
+
+  const handleDeleteIngredient = (id: string) => {
+    setIngredients(ingredients.filter(ing => ing.id !== id));
+  };
+
+  const handleIngredientClick = (ingredient: Ingredient) => {
+    setSelectedIngredient(ingredient);
+    setIngredientDialogOpen(true);
+  };
+
+  const handleRecipeClick = (recipe: Recipe) => {
+    setSelectedRecipe(recipe);
+    setRecipeDialogOpen(true);
+  };
 
   const expiringIngredients = ingredients.filter(
     (ing) => getExpiryStatus(ing.expiryDate) === 'expiring-soon'
@@ -37,10 +62,7 @@ const Index = () => {
                 monitor expiry dates, and discover delicious recipes.
               </p>
               <div className="flex gap-4">
-                <Button size="lg" className="bg-gradient-primary hover:opacity-90">
-                  <Plus className="mr-2 h-5 w-5" />
-                  Add Ingredient
-                </Button>
+                <AddIngredientDialog onAdd={handleAddIngredient} />
                 <Button size="lg" variant="outline">
                   Browse Recipes
                 </Button>
@@ -93,7 +115,11 @@ const Index = () => {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {expiringIngredients.map((ingredient) => (
-              <IngredientCard key={ingredient.id} ingredient={ingredient} />
+              <IngredientCard 
+                key={ingredient.id} 
+                ingredient={ingredient} 
+                onClick={() => handleIngredientClick(ingredient)}
+              />
             ))}
           </div>
         </section>
@@ -110,10 +136,27 @@ const Index = () => {
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {recipes.map((recipe) => (
-            <RecipeCard key={recipe.id} recipe={recipe} />
+            <RecipeCard 
+              key={recipe.id} 
+              recipe={recipe} 
+              onClick={() => handleRecipeClick(recipe)}
+            />
           ))}
         </div>
       </section>
+
+      {/* Dialogs */}
+      <IngredientDetailsDialog
+        ingredient={selectedIngredient}
+        open={ingredientDialogOpen}
+        onOpenChange={setIngredientDialogOpen}
+        onDelete={handleDeleteIngredient}
+      />
+      <RecipeDetailsDialog
+        recipe={selectedRecipe}
+        open={recipeDialogOpen}
+        onOpenChange={setRecipeDialogOpen}
+      />
     </div>
   );
 };

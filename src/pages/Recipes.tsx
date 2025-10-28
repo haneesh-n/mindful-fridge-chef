@@ -1,14 +1,22 @@
 import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import RecipeCard from "@/components/RecipeCard";
+import RecipeDetailsDialog from "@/components/RecipeDetailsDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { mockRecipes } from "@/data/mockData";
+import { mockRecipes, Recipe } from "@/data/mockData";
 import { Sparkles, Search } from "lucide-react";
 
 const Recipes = () => {
   const [recipes] = useState(mockRecipes);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handleRecipeClick = (recipe: Recipe) => {
+    setSelectedRecipe(recipe);
+    setDialogOpen(true);
+  };
 
   const filteredRecipes = recipes.filter((recipe) =>
     recipe.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -44,7 +52,11 @@ const Recipes = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredRecipes.map((recipe) => (
-            <RecipeCard key={recipe.id} recipe={recipe} />
+            <RecipeCard 
+              key={recipe.id} 
+              recipe={recipe}
+              onClick={() => handleRecipeClick(recipe)}
+            />
           ))}
         </div>
 
@@ -54,6 +66,12 @@ const Recipes = () => {
           </div>
         )}
       </main>
+
+      <RecipeDetailsDialog
+        recipe={selectedRecipe}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   );
 };

@@ -6,11 +6,12 @@ import { Clock, ChefHat } from "lucide-react";
 
 interface RecipeCardProps {
   recipe: Recipe;
+  onClick?: () => void;
 }
 
-const RecipeCard = ({ recipe }: RecipeCardProps) => {
+const RecipeCard = ({ recipe, onClick }: RecipeCardProps) => {
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-hover group">
+    <Card className="overflow-hidden transition-all hover:shadow-hover group cursor-pointer" onClick={onClick}>
       <div className="h-48 bg-gradient-primary" />
       <CardHeader>
         <div className="flex items-start justify-between">

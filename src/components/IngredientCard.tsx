@@ -6,9 +6,10 @@ import { format } from "date-fns";
 
 interface IngredientCardProps {
   ingredient: Ingredient;
+  onClick?: () => void;
 }
 
-const IngredientCard = ({ ingredient }: IngredientCardProps) => {
+const IngredientCard = ({ ingredient, onClick }: IngredientCardProps) => {
   const expiryStatus = getExpiryStatus(ingredient.expiryDate);
   const statusColor = getExpiryColor(expiryStatus);
   const daysUntilExpiry = Math.ceil(
@@ -16,7 +17,10 @@ const IngredientCard = ({ ingredient }: IngredientCardProps) => {
   );
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-hover cursor-pointer group">
+    <Card 
+      className="overflow-hidden transition-all hover:shadow-hover cursor-pointer group"
+      onClick={onClick}
+    >
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-3">
