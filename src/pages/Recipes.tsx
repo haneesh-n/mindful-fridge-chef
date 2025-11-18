@@ -1,17 +1,56 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import RecipeCard from "@/components/RecipeCard";
 import RecipeDetailsDialog from "@/components/RecipeDetailsDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { mockRecipes, Recipe } from "@/data/mockData";
+import { Recipe } from "@/data/mockData";
 import { Sparkles, Search } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Recipes = () => {
-  const [recipes] = useState(mockRecipes);
+  const { user } = useAuth();
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchRecipes();
+    }
+  }, [user]);
+
+  const fetchRecipes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("recipes")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const formattedRecipes: Recipe[] = (data || []).map((recipe) => ({
+        id: recipe.id,
+        title: recipe.title,
+        description: recipe.description || "",
+        ingredients: recipe.ingredients || [],
+        prepTime: recipe.prep_time,
+        difficulty: recipe.difficulty,
+        image: recipe.image,
+      }));
+
+      setRecipes(formattedRecipes);
+    } catch (error) {
+      console.error("Error fetching recipes:", error);
+      toast.error("Failed to load recipes");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleRecipeClick = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
@@ -50,20 +89,32 @@ const Recipes = () => {
           </Button>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredRecipes.map((recipe) => (
-            <RecipeCard 
-              key={recipe.id} 
-              recipe={recipe}
-              onClick={() => handleRecipeClick(recipe)}
-            />
-          ))}
-        </div>
-
-        {filteredRecipes.length === 0 && (
+        {isLoading ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground text-lg">No recipes found</p>
+            <p className="text-muted-foreground text-lg">Loading recipes...</p>
           </div>
+        ) : (
+          <>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredRecipes.map((recipe) => (
+                <RecipeCard 
+                  key={recipe.id} 
+                  recipe={recipe}
+                  onClick={() => handleRecipeClick(recipe)}
+                />
+              ))}
+            </div>
+
+            {filteredRecipes.length === 0 && !isLoading && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground text-lg">
+                  {recipes.length === 0 
+                    ? "No recipes yet. Generate some recipes based on your ingredients!" 
+                    : "No recipes found"}
+                </p>
+              </div>
+            )}
+          </>
         )}
       </main>
 
