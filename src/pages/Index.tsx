@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import IngredientCard from "@/components/IngredientCard";
 import RecipeCard from "@/components/RecipeCard";
@@ -7,25 +7,88 @@ import AddIngredientDialog from "@/components/AddIngredientDialog";
 import IngredientDetailsDialog from "@/components/IngredientDetailsDialog";
 import RecipeDetailsDialog from "@/components/RecipeDetailsDialog";
 import { Button } from "@/components/ui/button";
-import { mockIngredients, mockRecipes, Recipe } from "@/data/mockData";
+import { mockRecipes, Recipe } from "@/data/mockData";
 import { getExpiryStatus, Ingredient } from "@/types/ingredient";
 import { Package, ChefHat, TrendingDown } from "lucide-react";
 import heroImage from "@/assets/hero-kitchen.jpg";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Index = () => {
-  const [ingredients, setIngredients] = useState(mockIngredients);
+  const { user } = useAuth();
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [loading, setLoading] = useState(true);
   const [recipes] = useState(mockRecipes);
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [ingredientDialogOpen, setIngredientDialogOpen] = useState(false);
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
 
-  const handleAddIngredient = (newIngredient: Ingredient) => {
-    setIngredients([...ingredients, newIngredient]);
+  useEffect(() => {
+    if (user) {
+      fetchIngredients();
+    }
+  }, [user]);
+
+  const fetchIngredients = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("ingredients")
+      .select("*")
+      .order("expiry_date", { ascending: true });
+
+    if (error) {
+      toast.error("Failed to load ingredients");
+      console.error(error);
+    } else {
+      setIngredients(data.map(item => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        category: item.category,
+        purchaseDate: new Date(item.purchase_date),
+        expiryDate: new Date(item.expiry_date),
+        image: item.image || undefined,
+      })));
+    }
+    setLoading(false);
   };
 
-  const handleDeleteIngredient = (id: string) => {
-    setIngredients(ingredients.filter(ing => ing.id !== id));
+  const handleAddIngredient = async (newIngredient: Omit<Ingredient, "id">) => {
+    const { error } = await supabase
+      .from("ingredients")
+      .insert({
+        name: newIngredient.name,
+        quantity: newIngredient.quantity,
+        category: newIngredient.category,
+        purchase_date: newIngredient.purchaseDate.toISOString(),
+        expiry_date: newIngredient.expiryDate.toISOString(),
+        image: newIngredient.image,
+        user_id: user?.id,
+      });
+
+    if (error) {
+      toast.error("Failed to add ingredient");
+      console.error(error);
+    } else {
+      fetchIngredients();
+    }
+  };
+
+  const handleDeleteIngredient = async (id: string) => {
+    const { error } = await supabase
+      .from("ingredients")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Failed to delete ingredient");
+      console.error(error);
+    } else {
+      fetchIngredients();
+      toast.success("Ingredient deleted successfully");
+    }
   };
 
   const handleIngredientClick = (ingredient: Ingredient) => {

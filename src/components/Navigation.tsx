@@ -1,9 +1,18 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Package, ChefHat, BarChart3 } from "lucide-react";
+import { Home, Package, ChefHat, BarChart3, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Navigation = () => {
   const location = useLocation();
+  const { signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+  };
   
   const links = [
     { to: "/", icon: Home, label: "Dashboard" },
@@ -23,7 +32,7 @@ const Navigation = () => {
             </span>
           </Link>
           
-          <div className="flex space-x-1">
+          <div className="flex items-center space-x-1">
             {links.map(({ to, icon: Icon, label }) => {
               const isActive = location.pathname === to;
               return (
@@ -42,6 +51,15 @@ const Navigation = () => {
                 </Link>
               );
             })}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="ml-2"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
           </div>
         </div>
       </div>
