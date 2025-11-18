@@ -1,25 +1,87 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import IngredientCard from "@/components/IngredientCard";
 import AddIngredientDialog from "@/components/AddIngredientDialog";
 import IngredientDetailsDialog from "@/components/IngredientDetailsDialog";
 import { Input } from "@/components/ui/input";
-import { mockIngredients } from "@/data/mockData";
 import { Ingredient } from "@/types/ingredient";
 import { Search } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const Ingredients = () => {
-  const [ingredients, setIngredients] = useState(mockIngredients);
+  const { user } = useAuth();
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handleAddIngredient = (newIngredient: Ingredient) => {
-    setIngredients([...ingredients, newIngredient]);
+  useEffect(() => {
+    if (user) {
+      fetchIngredients();
+    }
+  }, [user]);
+
+  const fetchIngredients = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("ingredients")
+      .select("*")
+      .order("expiry_date", { ascending: true });
+
+    if (error) {
+      toast.error("Failed to load ingredients");
+      console.error(error);
+    } else {
+      setIngredients(data.map(item => ({
+        id: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        category: item.category,
+        purchaseDate: new Date(item.purchase_date),
+        expiryDate: new Date(item.expiry_date),
+        image: item.image || undefined,
+      })));
+    }
+    setLoading(false);
   };
 
-  const handleDeleteIngredient = (id: string) => {
-    setIngredients(ingredients.filter(ing => ing.id !== id));
+  const handleAddIngredient = async (newIngredient: Omit<Ingredient, "id">) => {
+    const { error } = await supabase
+      .from("ingredients")
+      .insert({
+        name: newIngredient.name,
+        quantity: newIngredient.quantity,
+        category: newIngredient.category,
+        purchase_date: newIngredient.purchaseDate.toISOString(),
+        expiry_date: newIngredient.expiryDate.toISOString(),
+        image: newIngredient.image,
+        user_id: user?.id,
+      });
+
+    if (error) {
+      toast.error("Failed to add ingredient");
+      console.error(error);
+    } else {
+      fetchIngredients();
+    }
+  };
+
+  const handleDeleteIngredient = async (id: string) => {
+    const { error } = await supabase
+      .from("ingredients")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Failed to delete ingredient");
+      console.error(error);
+    } else {
+      fetchIngredients();
+      toast.success("Ingredient deleted successfully");
+    }
   };
 
   const handleIngredientClick = (ingredient: Ingredient) => {
@@ -56,19 +118,25 @@ const Ingredients = () => {
           <AddIngredientDialog onAdd={handleAddIngredient} />
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredIngredients.map((ingredient) => (
-            <IngredientCard 
-              key={ingredient.id} 
-              ingredient={ingredient}
-              onClick={() => handleIngredientClick(ingredient)}
-            />
-          ))}
-        </div>
-
-        {filteredIngredients.length === 0 && (
+        {loading ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground text-lg">No ingredients found</p>
+            <p className="text-muted-foreground">Loading ingredients...</p>
+          </div>
+        ) : filteredIngredients.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground text-lg">
+              {searchQuery ? "No ingredients found" : "No ingredients yet. Add your first ingredient!"}
+            </p>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredIngredients.map((ingredient) => (
+              <IngredientCard 
+                key={ingredient.id} 
+                ingredient={ingredient}
+                onClick={() => handleIngredientClick(ingredient)}
+              />
+            ))}
           </div>
         )}
       </main>
