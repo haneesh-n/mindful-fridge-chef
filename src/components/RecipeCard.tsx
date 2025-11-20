@@ -12,7 +12,15 @@ interface RecipeCardProps {
 const RecipeCard = ({ recipe, onClick }: RecipeCardProps) => {
   return (
     <Card className="overflow-hidden transition-all hover:shadow-hover group cursor-pointer" onClick={onClick}>
-      <div className="h-48 bg-gradient-primary" />
+      {recipe.image ? (
+        <img 
+          src={recipe.image} 
+          alt={recipe.title}
+          className="h-48 w-full object-cover"
+        />
+      ) : (
+        <div className="h-48 bg-gradient-primary" />
+      )}
       <CardHeader>
         <div className="flex items-start justify-between">
           <CardTitle className="text-xl group-hover:text-primary transition-colors">
