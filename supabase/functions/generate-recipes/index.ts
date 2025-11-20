@@ -170,8 +170,63 @@ Format your response as valid JSON array with this structure:
 
     console.log('Recipes saved successfully:', savedRecipes?.length);
 
+    // Generate images for each recipe
+    console.log('Generating images for recipes...');
+    const recipesWithImages = await Promise.all(
+      savedRecipes!.map(async (recipe: any) => {
+        try {
+          const imagePrompt = `A professional food photography shot of ${recipe.title}. High quality, appetizing, well-lit, restaurant style presentation.`;
+          
+          const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${lovableApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash-image',
+              messages: [
+                {
+                  role: 'user',
+                  content: imagePrompt
+                }
+              ],
+              modalities: ['image', 'text']
+            }),
+          });
+
+          if (imageResponse.ok) {
+            const imageData = await imageResponse.json();
+            const imageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+            
+            if (imageUrl) {
+              // Update recipe with image
+              const { error: updateError } = await supabase
+                .from('recipes')
+                .update({ image: imageUrl })
+                .eq('id', recipe.id);
+              
+              if (updateError) {
+                console.error('Error updating recipe image:', updateError);
+              } else {
+                console.log('Image generated for recipe:', recipe.title);
+                recipe.image = imageUrl;
+              }
+            }
+          } else {
+            console.error('Image generation failed for:', recipe.title);
+          }
+        } catch (imgError) {
+          console.error('Error generating image for recipe:', recipe.title, imgError);
+        }
+        return recipe;
+      })
+    );
+
+    console.log('All images generated');
+
     return new Response(
-      JSON.stringify({ recipes: savedRecipes }),
+      JSON.stringify({ recipes: recipesWithImages }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

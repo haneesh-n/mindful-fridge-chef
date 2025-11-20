@@ -48,7 +48,15 @@ const RecipeDetailsDialog = ({ recipe, open, onOpenChange }: RecipeDetailsDialog
 
         <div className="space-y-6 mt-6">
           {/* Recipe Image */}
-          <div className="h-64 rounded-xl bg-gradient-primary overflow-hidden" />
+          {recipe.image ? (
+            <img 
+              src={recipe.image} 
+              alt={recipe.title}
+              className="h-64 w-full rounded-xl object-cover"
+            />
+          ) : (
+            <div className="h-64 rounded-xl bg-gradient-primary overflow-hidden" />
+          )}
 
           {/* Quick Info */}
           <div className="grid grid-cols-3 gap-4">
