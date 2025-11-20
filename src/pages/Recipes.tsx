@@ -17,6 +17,7 @@ const Recipes = () => {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -57,6 +58,41 @@ const Recipes = () => {
     setDialogOpen(true);
   };
 
+  const handleGenerateRecipes = async () => {
+    setIsGenerating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error("Please sign in to generate recipes");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('generate-recipes', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      toast.success(`Generated ${data.recipes.length} new recipes!`);
+      await fetchRecipes();
+    } catch (error) {
+      console.error("Error generating recipes:", error);
+      toast.error("Failed to generate recipes. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const filteredRecipes = recipes.filter((recipe) =>
     recipe.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -83,9 +119,13 @@ const Recipes = () => {
               className="pl-10"
             />
           </div>
-          <Button className="bg-gradient-primary hover:opacity-90">
+          <Button 
+            className="bg-gradient-primary hover:opacity-90" 
+            onClick={handleGenerateRecipes}
+            disabled={isGenerating}
+          >
             <Sparkles className="mr-2 h-5 w-5" />
-            Generate New Recipes
+            {isGenerating ? "Generating..." : "Generate New Recipes"}
           </Button>
         </div>
 
