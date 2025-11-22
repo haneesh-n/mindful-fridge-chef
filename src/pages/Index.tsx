@@ -5,10 +5,11 @@ import IngredientCard from "@/components/IngredientCard";
 import RecipeCard from "@/components/RecipeCard";
 import StatsCard from "@/components/StatsCard";
 import AddIngredientDialog from "@/components/AddIngredientDialog";
+import EditIngredientDialog from "@/components/EditIngredientDialog";
 import IngredientDetailsDialog from "@/components/IngredientDetailsDialog";
 import RecipeDetailsDialog from "@/components/RecipeDetailsDialog";
 import { Button } from "@/components/ui/button";
-import { mockRecipes, Recipe } from "@/data/mockData";
+import { Recipe } from "@/data/mockData";
 import { getExpiryStatus, Ingredient } from "@/types/ingredient";
 import { Package, ChefHat, TrendingDown } from "lucide-react";
 import heroImage from "@/assets/hero-kitchen.jpg";
@@ -20,16 +21,19 @@ const Index = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
-  const [recipes] = useState(mockRecipes);
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
+  const [editIngredient, setEditIngredient] = useState<Ingredient | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [ingredientDialogOpen, setIngredientDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchIngredients();
+      fetchRecipes();
     }
   }, [user]);
 
@@ -55,6 +59,32 @@ const Index = () => {
       })));
     }
     setLoading(false);
+  };
+
+  const fetchRecipes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("recipes")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (error) throw error;
+
+      const formattedRecipes: Recipe[] = (data || []).map((recipe) => ({
+        id: recipe.id,
+        title: recipe.title,
+        description: recipe.description || "",
+        ingredients: recipe.ingredients || [],
+        prepTime: recipe.prep_time,
+        difficulty: recipe.difficulty,
+        image: recipe.image,
+      }));
+
+      setRecipes(formattedRecipes);
+    } catch (error) {
+      console.error("Error fetching recipes:", error);
+    }
   };
 
   const handleAddIngredient = async (newIngredient: Omit<Ingredient, "id">) => {
@@ -93,9 +123,35 @@ const Index = () => {
     }
   };
 
+  const handleEditIngredient = async (id: string, updatedIngredient: Omit<Ingredient, "id">) => {
+    const { error } = await supabase
+      .from("ingredients")
+      .update({
+        name: updatedIngredient.name,
+        quantity: updatedIngredient.quantity,
+        category: updatedIngredient.category,
+        purchase_date: updatedIngredient.purchaseDate.toISOString(),
+        expiry_date: updatedIngredient.expiryDate.toISOString(),
+        image: updatedIngredient.image,
+      })
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Failed to update ingredient");
+      console.error(error);
+    } else {
+      fetchIngredients();
+    }
+  };
+
   const handleIngredientClick = (ingredient: Ingredient) => {
     setSelectedIngredient(ingredient);
     setIngredientDialogOpen(true);
+  };
+
+  const handleEditClick = (ingredient: Ingredient) => {
+    setEditIngredient(ingredient);
+    setEditDialogOpen(true);
   };
 
   const handleRecipeClick = (recipe: Recipe) => {
@@ -187,6 +243,8 @@ const Index = () => {
                 key={ingredient.id} 
                 ingredient={ingredient} 
                 onClick={() => handleIngredientClick(ingredient)}
+                onEdit={() => handleEditClick(ingredient)}
+                showEdit={true}
               />
             ))}
           </div>
@@ -219,6 +277,12 @@ const Index = () => {
         open={ingredientDialogOpen}
         onOpenChange={setIngredientDialogOpen}
         onDelete={handleDeleteIngredient}
+      />
+      <EditIngredientDialog
+        ingredient={editIngredient}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onEdit={handleEditIngredient}
       />
       <RecipeDetailsDialog
         recipe={selectedRecipe}
