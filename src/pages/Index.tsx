@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import IngredientCard from "@/components/IngredientCard";
 import RecipeCard from "@/components/RecipeCard";
@@ -16,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 const Index = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,7 +128,7 @@ const Index = () => {
               </p>
               <div className="flex gap-4">
                 <AddIngredientDialog onAdd={handleAddIngredient} />
-                <Button size="lg" variant="outline">
+                <Button size="lg" variant="outline" onClick={() => navigate('/recipes')}>
                   Browse Recipes
                 </Button>
               </div>
@@ -150,6 +152,7 @@ const Index = () => {
             value={ingredients.length.toString()}
             description="Currently in your fridge"
             icon={Package}
+            onClick={() => navigate('/ingredients')}
           />
           <StatsCard
             title="Expiring Soon"
@@ -157,12 +160,14 @@ const Index = () => {
             description="Use within 2 days"
             icon={TrendingDown}
             trend={{ value: "2 less than yesterday", isPositive: true }}
+            onClick={() => navigate('/ingredients')}
           />
           <StatsCard
             title="Recipe Suggestions"
             value={recipes.length.toString()}
             description="Based on your inventory"
             icon={ChefHat}
+            onClick={() => navigate('/recipes')}
           />
         </div>
       </section>
@@ -195,7 +200,7 @@ const Index = () => {
             <h2 className="text-3xl font-bold mb-2">Suggested Recipes</h2>
             <p className="text-muted-foreground">Perfect for your expiring ingredients</p>
           </div>
-          <Button variant="outline">View All</Button>
+          <Button variant="outline" onClick={() => navigate('/recipes')}>View All</Button>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {recipes.map((recipe) => (
