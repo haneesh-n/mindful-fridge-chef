@@ -17,7 +17,12 @@ const Auth = () => {
 
   useEffect(() => {
     // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Clear corrupted session data
+        supabase.auth.signOut();
+        return;
+      }
       if (session) {
         navigate("/");
       }
@@ -48,16 +53,27 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Welcome back!");
-      navigate("/");
+      if (error) {
+        // Handle specific auth errors
+        if (error.message.includes("Failed to fetch")) {
+          toast.error("Network error. Please check your connection and try again.");
+        } else if (error.message.includes("Invalid login credentials")) {
+          toast.error("Invalid email or password. Please try again.");
+        } else {
+          toast.error(error.message);
+        }
+      } else {
+        toast.success("Welcome back!");
+        navigate("/");
+      }
+    } catch (err) {
+      toast.error("Connection error. Please try again.");
     }
     setLoading(false);
   };
