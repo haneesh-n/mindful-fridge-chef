@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import IngredientCard from "@/components/IngredientCard";
@@ -30,23 +30,21 @@ const Index = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchIngredients();
-      fetchRecipes();
-    }
-  }, [user]);
-
-  const fetchIngredients = async () => {
-    setLoading(true);
+  const fetchIngredients = useCallback(async (retryCount = 0) => {
     const { data, error } = await supabase
       .from("ingredients")
       .select("*")
       .order("expiry_date", { ascending: true });
 
     if (error) {
-      toast.error("Failed to load ingredients");
+      // Retry on schema cache errors
+      if (error.code === "PGRST002" && retryCount < 3) {
+        setTimeout(() => fetchIngredients(retryCount + 1), 1000 * (retryCount + 1));
+        return;
+      }
+      toast.error("Failed to load ingredients. Please refresh the page.");
       console.error(error);
+      setLoading(false);
     } else {
       setIngredients(data.map(item => ({
         id: item.id,
@@ -57,20 +55,25 @@ const Index = () => {
         expiryDate: new Date(item.expiry_date),
         image: item.image || undefined,
       })));
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, []);
 
-  const fetchRecipes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("recipes")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(3);
+  const fetchRecipes = useCallback(async (retryCount = 0) => {
+    const { data, error } = await supabase
+      .from("recipes")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(3);
 
-      if (error) throw error;
-
+    if (error) {
+      // Retry on schema cache errors
+      if (error.code === "PGRST002" && retryCount < 3) {
+        setTimeout(() => fetchRecipes(retryCount + 1), 1000 * (retryCount + 1));
+        return;
+      }
+      console.error("Error fetching recipes:", error);
+    } else {
       const formattedRecipes: Recipe[] = (data || []).map((recipe) => ({
         id: recipe.id,
         title: recipe.title,
@@ -80,12 +83,17 @@ const Index = () => {
         difficulty: recipe.difficulty,
         image: recipe.image,
       }));
-
       setRecipes(formattedRecipes);
-    } catch (error) {
-      console.error("Error fetching recipes:", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setLoading(true);
+      fetchIngredients();
+      fetchRecipes();
+    }
+  }, [user, fetchIngredients, fetchRecipes]);
 
   const handleAddIngredient = async (newIngredient: Omit<Ingredient, "id">) => {
     const { error } = await supabase

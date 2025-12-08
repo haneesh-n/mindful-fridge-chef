@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Navigation from "@/components/Navigation";
 import RecipeCard from "@/components/RecipeCard";
 import RecipeDetailsDialog from "@/components/RecipeDetailsDialog";
@@ -19,21 +19,22 @@ const Recipes = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchRecipes();
-    }
-  }, [user]);
+  const fetchRecipes = useCallback(async (retryCount = 0) => {
+    const { data, error } = await supabase
+      .from("recipes")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  const fetchRecipes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("recipes")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
+    if (error) {
+      // Retry on schema cache errors
+      if (error.code === "PGRST002" && retryCount < 3) {
+        setTimeout(() => fetchRecipes(retryCount + 1), 1000 * (retryCount + 1));
+        return;
+      }
+      console.error("Error fetching recipes:", error);
+      toast.error("Failed to load recipes. Please refresh the page.");
+      setIsLoading(false);
+    } else {
       const formattedRecipes: Recipe[] = (data || []).map((recipe) => ({
         id: recipe.id,
         title: recipe.title,
@@ -43,15 +44,16 @@ const Recipes = () => {
         difficulty: recipe.difficulty,
         image: recipe.image,
       }));
-
       setRecipes(formattedRecipes);
-    } catch (error) {
-      console.error("Error fetching recipes:", error);
-      toast.error("Failed to load recipes");
-    } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchRecipes();
+    }
+  }, [user, fetchRecipes]);
 
   const handleRecipeClick = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
