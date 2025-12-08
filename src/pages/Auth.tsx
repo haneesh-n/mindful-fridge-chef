@@ -14,19 +14,35 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session) {
+          // Use setTimeout to prevent deadlock
+          setTimeout(() => {
+            navigate("/", { replace: true });
+          }, 0);
+        }
+        setCheckingSession(false);
+      }
+    );
+
+    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         // Clear corrupted session data
         supabase.auth.signOut();
-        return;
       }
       if (session) {
-        navigate("/");
+        navigate("/", { replace: true });
       }
+      setCheckingSession(false);
     });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -54,13 +70,12 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        // Handle specific auth errors
         if (error.message.includes("Failed to fetch")) {
           toast.error("Network error. Please check your connection and try again.");
         } else if (error.message.includes("Invalid login credentials")) {
@@ -68,15 +83,24 @@ const Auth = () => {
         } else {
           toast.error(error.message);
         }
-      } else {
+        setLoading(false);
+      } else if (data.session) {
         toast.success("Welcome back!");
-        navigate("/");
+        // Navigation will happen via onAuthStateChange
       }
     } catch (err) {
       toast.error("Connection error. Please try again.");
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-success/5">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-success/5 p-4">
